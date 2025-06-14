@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "598041253528",
+    "project_id": "nowhere-8985a",
+    "storage_bucket": "nowhere-8985a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:598041253528:android:790893fed648925bbca2ed",
+        "android_client_info": {
+          "package_name": "com.example.now_here"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpK019Nc1VcBmPo1ryRvNdxQLAuhcOcXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
