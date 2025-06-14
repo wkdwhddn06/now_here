@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
           backgroundColor: Color(0xFF2d2d2d),
           foregroundColor: Colors.white,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: const Color(0xFF2d2d2d),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
