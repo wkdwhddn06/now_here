@@ -1,12 +1,19 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+enum MessageType {
+  text,
+  locationEvent,
+}
+
 class ChatMessageRealtime {
   final String id;
   final String userId;
   final String message;
   final int timestamp;
   final String? userName;
+  final MessageType type;
+  final String? eventId; // LocationEvent ID
 
   ChatMessageRealtime({
     required this.id,
@@ -14,6 +21,8 @@ class ChatMessageRealtime {
     required this.message,
     required this.timestamp,
     this.userName,
+    this.type = MessageType.text,
+    this.eventId,
   });
 
   // Realtime Database에서 받은 데이터를 객체로 변환
@@ -24,6 +33,11 @@ class ChatMessageRealtime {
       message: data['message'] ?? '',
       timestamp: data['timestamp'] ?? 0,
       userName: data['userName'],
+      type: MessageType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => MessageType.text,
+      ),
+      eventId: data['eventId'],
     );
   }
 
@@ -34,7 +48,28 @@ class ChatMessageRealtime {
       'message': message,
       'timestamp': timestamp,
       'userName': userName,
+      'type': type.name,
+      'eventId': eventId,
     };
+  }
+
+  // LocationEvent 메시지 생성을 위한 팩토리 메서드
+  factory ChatMessageRealtime.locationEvent({
+    required String id,
+    required String userId,
+    required String userName,
+    required String eventId,
+    required String eventTitle,
+  }) {
+    return ChatMessageRealtime(
+      id: id,
+      userId: userId,
+      message: eventTitle, // 이벤트 제목을 메시지로 사용
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      userName: userName,
+      type: MessageType.locationEvent,
+      eventId: eventId,
+    );
   }
 
   // 시간 정렬을 위한 compareTo

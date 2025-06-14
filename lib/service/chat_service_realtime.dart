@@ -191,4 +191,46 @@ class ChatServiceRealtime {
       return false;
     }
   }
+
+  // LocationEvent를 채팅 메시지로 공유
+  Future<bool> shareLocationEvent({
+    required String chatRoomId,
+    required String userId,
+    required String userName,
+    required String eventId,
+    required String eventTitle,
+  }) async {
+    try {
+      final messageRef = _database
+          .ref()
+          .child('chatRooms')
+          .child(chatRoomId)
+          .child('messages')
+          .push();
+
+      final message = ChatMessageRealtime.locationEvent(
+        id: messageRef.key!,
+        userId: userId,
+        userName: userName,
+        eventId: eventId,
+        eventTitle: eventTitle,
+      );
+
+      await messageRef.set(message.toMap());
+      
+      // 채팅방의 lastMessageAt 업데이트
+      await _database
+          .ref()
+          .child('chatRooms')
+          .child(chatRoomId)
+          .child('lastMessageAt')
+          .set(ServerValue.timestamp);
+
+      print('LocationEvent 메시지 전송 완료: $eventTitle');
+      return true;
+    } catch (e) {
+      print('LocationEvent 메시지 전송 실패: $e');
+      return false;
+    }
+  }
 } 

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../data/chat_message_realtime.dart';
+import '../../../data/location_event.dart';
+import '../../../service/location_event_service.dart';
+import 'location_event_bubble.dart';
+import '../../widgets/anonymous_user_widgets.dart';
 
-class MessageBubble extends StatelessWidget {
+class MessageBubble extends StatefulWidget {
   final ChatMessageRealtime message;
   final bool isMe;
   final bool isFirstInGroup;
@@ -18,150 +22,192 @@ class MessageBubble extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: isFirstInGroup ? 8 : 2,
-        bottom: isLastInGroup ? 8 : 2,
-      ),
-      child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isMe) ...[
-            // 첫 번째 메시지에만 아바타 표시, 나머지는 빈 공간
-            SizedBox(
-              width: 32,
-              child: isFirstInGroup ? _buildAvatar() : null,
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment:
-                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                // 첫 번째 메시지에만 사용자명 표시
-                if (!isMe && isFirstInGroup) _buildUserName(),
-                _buildMessageBubble(),
-                // 마지막 메시지에만 시간 표시
-                if (showTimestamp && isLastInGroup) _buildTimestamp(),
-              ],
-            ),
-          ),
-          if (isMe) ...[
-            const SizedBox(width: 8),
-            // 첫 번째 메시지에만 아바타 표시, 나머지는 빈 공간
-            SizedBox(
-              width: 32,
-              child: isFirstInGroup ? _buildAvatar() : null,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  State<MessageBubble> createState() => _MessageBubbleState();
+}
 
-  Widget _buildAvatar() {
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: isMe ? Colors.deepPurple[300] : Colors.grey[600],
-      child: Text(
-        isMe ? '나' : (message.userName?.substring(0, 1) ?? '?'),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
+class _MessageBubbleState extends State<MessageBubble> {
+  final LocationEventService _eventService = LocationEventService();
+  LocationEvent? _locationEvent;
+  bool _isLoadingEvent = false;
 
-  Widget _buildUserName() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 4),
-      child: Text(
-        message.userName ?? '익명',
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.white70,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 250),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: isMe ? Colors.deepPurple : const Color(0xFF3d3d3d),
-        borderRadius: _getBubbleRadius(),
-      ),
-      child: Text(
-        message.message,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
-
-  BorderRadius _getBubbleRadius() {
-    const radius = Radius.circular(18);
-    const smallRadius = Radius.circular(6);
-    
-    if (isFirstInGroup && isLastInGroup) {
-      // 단독 메시지 - 모든 모서리 둥글게
-      return BorderRadius.only(
-        topLeft: radius,
-        topRight: radius,
-        bottomLeft: isMe ? radius : smallRadius,
-        bottomRight: isMe ? smallRadius : radius,
-      );
-    } else if (isFirstInGroup) {
-      // 그룹 첫 메시지 - 상단만 둥글게
-      return BorderRadius.only(
-        topLeft: radius,
-        topRight: radius,
-        bottomLeft: isMe ? radius : smallRadius,
-        bottomRight: isMe ? smallRadius : radius,
-      );
-    } else if (isLastInGroup) {
-      // 그룹 마지막 메시지 - 하단만 둥글게
-      return BorderRadius.only(
-        topLeft: isMe ? radius : smallRadius,
-        topRight: isMe ? smallRadius : radius,
-        bottomLeft: isMe ? radius : smallRadius,
-        bottomRight: isMe ? smallRadius : radius,
-      );
-    } else {
-      // 그룹 중간 메시지 - 양쪽만 둥글게
-      return BorderRadius.only(
-        topLeft: isMe ? radius : smallRadius,
-        topRight: isMe ? smallRadius : radius,
-        bottomLeft: isMe ? radius : smallRadius,
-        bottomRight: isMe ? smallRadius : radius,
-      );
+  @override
+  void initState() {
+    super.initState();
+    if (widget.message.type == MessageType.locationEvent && widget.message.eventId != null) {
+      _loadLocationEvent();
     }
   }
 
-  Widget _buildTimestamp() {
-    return Padding(
-      padding: EdgeInsets.only(
+  Future<void> _loadLocationEvent() async {
+    setState(() => _isLoadingEvent = true);
+    
+    try {
+      final events = await _eventService.getNearbyEvents();
+      final event = events.firstWhere(
+        (e) => e.id == widget.message.eventId,
+        orElse: () => throw Exception('이벤트를 찾을 수 없습니다'),
+      );
+      
+      setState(() {
+        _locationEvent = event;
+        _isLoadingEvent = false;
+      });
+    } catch (e) {
+      print('LocationEvent 로드 실패: $e');
+      setState(() => _isLoadingEvent = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // LocationEvent 메시지인 경우
+    if (widget.message.type == MessageType.locationEvent) {
+      if (_isLoadingEvent) {
+        return _buildLoadingEventBubble();
+      }
+      
+      if (_locationEvent != null) {
+        return LocationEventBubble(
+          event: _locationEvent!,
+          isMe: widget.isMe,
+        );
+      } else {
+        return _buildErrorEventBubble();
+      }
+    }
+
+    // 일반 텍스트 메시지
+    return _buildTextMessage();
+  }
+
+  Widget _buildLoadingEventBubble() {
+    return Container(
+      margin: EdgeInsets.only(
+        left: widget.isMe ? 64 : 16,
+        right: widget.isMe ? 16 : 64,
         top: 4,
-        left: isMe ? 0 : 8,
-        right: isMe ? 8 : 0,
+        bottom: 4,
       ),
-      child: Text(
-        _formatTime(message.dateTime),
-        style: const TextStyle(
-          fontSize: 10,
-          color: Colors.white54,
+      child: Align(
+        alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.isMe ? Colors.blue[600] : Colors.grey[800],
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text(
+                '이벤트 정보를 불러오는 중...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorEventBubble() {
+    return Container(
+      margin: EdgeInsets.only(
+        left: widget.isMe ? 64 : 16,
+        right: widget.isMe ? 16 : 64,
+        top: 4,
+        bottom: 4,
+      ),
+      child: Align(
+        alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.withOpacity(0.5)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 16),
+              SizedBox(width: 8),
+              Text(
+                '이벤트를 찾을 수 없습니다',
+                style: TextStyle(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextMessage() {
+    return Container(
+      margin: EdgeInsets.only(
+        left: widget.isMe ? 64 : 16,
+        right: widget.isMe ? 16 : 64,
+        top: widget.isFirstInGroup ? 8 : 2,
+        bottom: widget.isLastInGroup ? 8 : 2,
+      ),
+      child: Column(
+        crossAxisAlignment: widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          // 사용자 이름 (첫 번째 메시지이고 내가 보낸 메시지가 아닐 때만)
+          if (widget.isFirstInGroup && !widget.isMe)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 4),
+              child: AnonymousUserName(
+                userId: widget.message.userId,
+                userName: widget.message.userName,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                showGradient: false,
+              ),
+            ),
+          
+          // 메시지 버블
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: widget.isMe ? Colors.blue[600] : Colors.grey[800],
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(widget.isMe || !widget.isFirstInGroup ? 16 : 4),
+                topRight: Radius.circular(!widget.isMe || !widget.isFirstInGroup ? 16 : 4),
+                bottomLeft: Radius.circular(widget.isMe || !widget.isLastInGroup ? 16 : 4),
+                bottomRight: Radius.circular(!widget.isMe || !widget.isLastInGroup ? 16 : 4),
+              ),
+            ),
+            child: Text(
+              widget.message.message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                height: 1.3,
+              ),
+            ),
+          ),
+          
+          // 시간 표시 (마지막 메시지일 때만)
+          if (widget.showTimestamp)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _formatTime(widget.message.dateTime),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -170,12 +216,15 @@ class MessageBubble extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-
+    
     if (messageDate == today) {
-      // 오늘인 경우 시간만 표시
+      // 오늘: 시간만 표시
       return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else if (messageDate == today.subtract(const Duration(days: 1))) {
+      // 어제
+      return '어제 ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     } else {
-      // 다른 날인 경우 날짜와 시간 표시
+      // 그 이전: 날짜 포함
       return '${dateTime.month}/${dateTime.day} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
   }

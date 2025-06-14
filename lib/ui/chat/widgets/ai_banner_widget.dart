@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../service/ai_banner_service.dart';
 import '../../../service/ai_event_service.dart';
-import '../../../service/event_service.dart';
+import '../../../service/location_event_service.dart';
+import '../../../service/chat_room_service.dart';
+import '../../../service/chat_service_realtime.dart';
 import '../../../service/user_service.dart';
+import '../../../data/location_event.dart';
+import '../../../data/chat_room.dart';
+import '../chat_screen.dart';
 
 class AiBannerWidget extends StatefulWidget {
   final String locationName;
@@ -490,25 +495,38 @@ class _AiBannerWidgetState extends State<AiBannerWidget> {
       );
 
       final aiEventService = AiEventService();
-      final eventService = EventService();
+      final locationEventService = LocationEventService();
+      final chatService = ChatServiceRealtime();
       final userService = UserService();
 
-      // AI를 통해 이벤트 생성
-      final event = await aiEventService.generateEventFromBanner(
+      // AI를 통해 LocationEvent 생성
+      final eventId = await aiEventService.generateLocationEventFromBanner(
         banner,
         userService.currentUser.id,
         userService.currentUser.name,
-        widget.chatRoomId,
       );
 
       // 로딩 다이얼로그 닫기
       Navigator.pop(context);
 
-      if (event != null) {
-        // Firebase에 이벤트 저장
-        final success = await eventService.createEvent(event, widget.chatRoomId);
+      if (eventId != null) {
+        // 생성된 이벤트 정보 가져오기
+        final events = await locationEventService.getNearbyEvents();
+        final createdEvent = events.firstWhere(
+          (event) => event.id == eventId,
+          orElse: () => throw Exception('생성된 이벤트를 찾을 수 없습니다'),
+        );
         
-        if (success) {
+        // 채팅방에 LocationEvent 메시지 공유
+        final shareSuccess = await chatService.shareLocationEvent(
+          chatRoomId: widget.chatRoomId,
+          userId: userService.currentUser.id,
+          userName: userService.currentUser.name,
+          eventId: eventId,
+          eventTitle: createdEvent.title,
+        );
+        
+        if (shareSuccess) {
           // 성공 메시지와 함께 모달 닫기
           Navigator.pop(context);
           
@@ -520,7 +538,7 @@ class _AiBannerWidgetState extends State<AiBannerWidget> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${event.title} 이벤트가 생성되었습니다!',
+                      '${createdEvent.title} 이벤트가 생성되어 채팅방에 공유되었습니다!',
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
@@ -535,7 +553,7 @@ class _AiBannerWidgetState extends State<AiBannerWidget> {
             ),
           );
         } else {
-          _showErrorMessage('이벤트 저장에 실패했습니다.');
+          _showErrorMessage('이벤트는 생성되었지만 채팅방 공유에 실패했습니다.');
         }
       } else {
         _showErrorMessage('이벤트 생성에 실패했습니다.');
@@ -547,6 +565,348 @@ class _AiBannerWidgetState extends State<AiBannerWidget> {
       }
       
       _showErrorMessage('이벤트 생성 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  void _showEventDetails(LocationEvent event) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Color(0xFF2d2d2d),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _getEventColor(event.type).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            event.type.icon,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.title,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                event.locationName,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      '설명',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      event.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.8),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          icon: Icons.people,
+                          text: '${event.participantIds.length}/${event.maxParticipants}명',
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildInfoChip(
+                          icon: Icons.access_time,
+                          text: event.timeLeftString,
+                          color: Colors.orange,
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _joinEvent(event),
+                        icon: const Icon(Icons.group_add),
+                        label: const Text('참여하기'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _getEventColor(event.type),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinEvent(LocationEvent event) async {
+    try {
+      // 로딩 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.orange),
+        ),
+      );
+
+      final locationEventService = LocationEventService();
+      final chatRoomService = ChatRoomService();
+      final userService = UserService();
+      
+      final userId = userService.currentUser.id;
+      final userName = userService.currentUser.name;
+
+      print('이벤트 참여 시도: ${event.title}, 사용자: $userName ($userId)');
+
+      // 1. 먼저 이미 참여했는지 확인
+      final isAlreadyParticipating = await locationEventService.isUserParticipating(event.id, userId);
+      
+      if (isAlreadyParticipating) {
+        print('이미 참여한 이벤트입니다. 채팅방으로 이동합니다.');
+        
+        // 이벤트 전용 채팅방으로 바로 이동
+        final chatRoom = await _createEventChatRoom(event, userId, userName);
+        
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        
+        if (chatRoom != null) {
+          Navigator.of(context).pop(); // 이벤트 상세 다이얼로그 닫기
+          Navigator.of(context).pop(); // 배너 모달 닫기
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(chatRoom: chatRoom),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('채팅방을 찾을 수 없습니다'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2. 새로운 참여 시도
+      final joinSuccess = await locationEventService.joinEvent(event.id, userId, userName);
+      
+      if (!joinSuccess) {
+        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이벤트 참여에 실패했습니다'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // 3. 이벤트 전용 채팅방 생성
+      final chatRoom = await _createEventChatRoom(event, userId, userName);
+      
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+      
+      if (chatRoom != null) {
+        // 4. 채팅방으로 이동
+        Navigator.of(context).pop(); // 이벤트 상세 다이얼로그 닫기
+        Navigator.of(context).pop(); // 배너 모달 닫기
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(chatRoom: chatRoom),
+          ),
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${event.title} 이벤트에 참여했습니다!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('채팅방 생성에 실패했습니다'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+      print('이벤트 참여 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // 이벤트 전용 채팅방 생성
+  Future<ChatRoom?> _createEventChatRoom(LocationEvent event, String userId, String userName) async {
+    try {
+      final chatRoomService = ChatRoomService();
+      
+      // 이벤트 ID를 기반으로 한 고유한 채팅방 ID
+      final eventChatRoomId = 'event_chat_${event.id}';
+      final chatRoomLocationName = '${event.type.icon} ${event.title} (${event.locationName})';
+      
+      // 채팅방 생성
+      final chatRoom = ChatRoom(
+        id: eventChatRoomId,
+        locationName: chatRoomLocationName,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        createdAt: DateTime.now(),
+        userCount: 1,
+        lastMessageAt: DateTime.now(),
+        isEventRoom: true, // 이벤트 채팅방으로 표시
+      );
+
+      // Firestore에 채팅방 저장
+      await chatRoomService.createChatRoom(chatRoom);
+      
+      print('이벤트 채팅방 생성 완료: ${chatRoom.id} (isEventRoom: ${chatRoom.isEventRoom})');
+      return chatRoom;
+    } catch (e) {
+      print('이벤트 채팅방 생성 실패: $e');
+      // 이미 존재하는 채팅방일 수 있으므로 기본 ChatRoom 객체 반환
+      if (e.toString().contains('already exists') || e.toString().contains('ALREADY_EXISTS')) {
+        final chatRoom = ChatRoom(
+          id: 'event_chat_${event.id}',
+          locationName: '${event.type.icon} ${event.title} (${event.locationName})',
+          latitude: event.latitude,
+          longitude: event.longitude,
+          createdAt: DateTime.now(),
+          userCount: 1,
+          lastMessageAt: DateTime.now(),
+          isEventRoom: true, // 이벤트 채팅방으로 표시
+        );
+        print('기존 이벤트 채팅방 사용: ${chatRoom.id} (isEventRoom: ${chatRoom.isEventRoom})');
+        return chatRoom;
+      }
+      return null;
+    }
+  }
+
+  Color _getEventColor(EventType eventType) {
+    switch (eventType) {
+      case EventType.study:
+        return Colors.blue;
+      case EventType.food:
+        return Colors.orange;
+      case EventType.help:
+        return Colors.red;
+      case EventType.chat:
+        return Colors.purple;
+      case EventType.coffee:
+        return Colors.brown;
+      case EventType.walk:
+        return Colors.green;
+      case EventType.shopping:
+        return Colors.pink;
+      case EventType.emergency:
+        return Colors.red;
     }
   }
 

@@ -8,9 +8,6 @@ import '../widgets/state_widgets.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/chat_input.dart';
 import 'widgets/ai_banner_widget.dart';
-import 'widgets/event_bubble.dart';
-import '../../service/event_service.dart';
-import '../../data/chat_event.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatRoom chatRoom;
@@ -31,7 +28,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final UserService _userService = UserService();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
-  final EventService _eventService = EventService();
   
   late AnonymousUser _currentUser;
   List<ChatMessageRealtime> _messages = [];
@@ -45,8 +41,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _initializeChat();
-    // 만료된 이벤트 정리
-    _eventService.cleanupExpiredEvents(widget.chatRoom.id!);
   }
 
   @override
@@ -376,11 +370,12 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // AI 배너 광고 추가
-          AiBannerWidget(
-            locationName: widget.chatRoom.locationName,
-            chatRoomId: widget.chatRoom.id!,
-          ),
+          // AI 배너 (이벤트 채팅방이 아닌 경우에만 표시)
+          if (!widget.chatRoom.isEventRoom)
+            AiBannerWidget(
+              locationName: widget.chatRoom.locationName,
+              chatRoomId: widget.chatRoom.id!,
+            ),
           Expanded(
             child: _buildMessageList(),
           ),
@@ -407,110 +402,14 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    return StreamBuilder<List<ChatEvent>>(
-      stream: _eventService.getActiveEventsStream(widget.chatRoom.id!),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          print('이벤트 스트림 오류: ${snapshot.error}');
-        }
-
-        final events = snapshot.data ?? [];
-        
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _getItemCount(events),
-          itemBuilder: (context, index) => _buildChatItem(context, index, events),
-        );
-      },
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) => MessageBubble(
+        message: _messages[index],
+        isMe: _messages[index].userId == _currentUser.id,
+      ),
     );
   }
-
-  int _getItemCount(List<ChatEvent> events) {
-    // 기본 메시지들 + 이벤트들
-    return _messages.length + events.length;
-  }
-
-  Widget _buildChatItem(BuildContext context, int index, List<ChatEvent> events) {
-    // 이벤트가 먼저 표시되도록
-    if (index < events.length) {
-      return EventBubble(
-        event: events[index],
-        chatRoomId: widget.chatRoom.id!,
-      );
-    }
-    
-    // 기본 채팅 메시지
-    final messageIndex = index - events.length;
-    if (messageIndex < _messages.length) {
-      final message = _messages[messageIndex];
-      final isMe = message.userId == _currentUser.id;
-      
-      // 메시지 그룹핑 로직
-      final groupInfo = _getMessageGroupInfo(messageIndex);
-      
-      return MessageBubble(
-        message: message,
-        isMe: isMe,
-        isFirstInGroup: groupInfo.isFirst,
-        isLastInGroup: groupInfo.isLast,
-        showTimestamp: groupInfo.showTimestamp,
-      );
-    }
-    
-    return const SizedBox.shrink();
-  }
-
-  MessageGroupInfo _getMessageGroupInfo(int index) {
-    final currentMessage = _messages[index];
-    
-    // 이전 메시지와 다음 메시지 확인
-    final previousMessage = index > 0 ? _messages[index - 1] : null;
-    final nextMessage = index < _messages.length - 1 ? _messages[index + 1] : null;
-    
-    // 같은 사용자인지 확인 (5분 이내)
-    bool isSameUserAsPrevious = false;
-    bool isSameUserAsNext = false;
-    
-    if (previousMessage != null) {
-      final timeDiff = currentMessage.timestamp - previousMessage.timestamp;
-      isSameUserAsPrevious = previousMessage.userId == currentMessage.userId && 
-                           timeDiff < 5 * 60 * 1000; // 5분
-    }
-    
-    if (nextMessage != null) {
-      final timeDiff = nextMessage.timestamp - currentMessage.timestamp;
-      isSameUserAsNext = nextMessage.userId == currentMessage.userId &&
-                        timeDiff < 5 * 60 * 1000; // 5분
-    }
-    
-    // 그룹 정보 결정
-    final isFirst = !isSameUserAsPrevious;
-    final isLast = !isSameUserAsNext;
-    
-    // 시간 표시: 마지막 메시지이거나, 다음 사용자가 다르거나, 시간 간격이 클 때
-    bool showTimestamp = isLast || index == _messages.length - 1;
-    if (nextMessage != null && nextMessage.userId == currentMessage.userId) {
-      final timeDiff = nextMessage.timestamp - currentMessage.timestamp;
-      showTimestamp = timeDiff > 5 * 60 * 1000; // 5분 이상 차이나면 시간 표시
-    }
-    
-    return MessageGroupInfo(
-      isFirst: isFirst,
-      isLast: isLast,
-      showTimestamp: showTimestamp,
-    );
-  }
-}
-
-class MessageGroupInfo {
-  final bool isFirst;
-  final bool isLast;
-  final bool showTimestamp;
-  
-  MessageGroupInfo({
-    required this.isFirst,
-    required this.isLast,
-    required this.showTimestamp,
-  });
 } 

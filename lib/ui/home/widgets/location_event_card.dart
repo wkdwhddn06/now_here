@@ -83,7 +83,7 @@ class LocationEventCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.8),
                 height: 1.3,
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
