@@ -14,6 +14,8 @@ class ChatMessageRealtime {
   final String? userName;
   final MessageType type;
   final String? eventId; // LocationEvent ID
+  final bool isBlocked; // 비속어로 인한 블라인드 처리
+  final String? originalMessage; // 원본 메시지 (블라인드 처리된 경우)
 
   ChatMessageRealtime({
     required this.id,
@@ -23,6 +25,8 @@ class ChatMessageRealtime {
     this.userName,
     this.type = MessageType.text,
     this.eventId,
+    this.isBlocked = false,
+    this.originalMessage,
   });
 
   // Realtime Database에서 받은 데이터를 객체로 변환
@@ -38,6 +42,8 @@ class ChatMessageRealtime {
         orElse: () => MessageType.text,
       ),
       eventId: data['eventId'],
+      isBlocked: data['isBlocked'] ?? false,
+      originalMessage: data['originalMessage'],
     );
   }
 
@@ -50,6 +56,8 @@ class ChatMessageRealtime {
       'userName': userName,
       'type': type.name,
       'eventId': eventId,
+      'isBlocked': isBlocked,
+      'originalMessage': originalMessage,
     };
   }
 
@@ -69,6 +77,26 @@ class ChatMessageRealtime {
       userName: userName,
       type: MessageType.locationEvent,
       eventId: eventId,
+    );
+  }
+
+  // 블라인드 처리된 메시지 생성을 위한 팩토리 메서드
+  factory ChatMessageRealtime.blocked({
+    required String id,
+    required String userId,
+    required String userName,
+    required String originalMessage,
+    required int timestamp,
+  }) {
+    return ChatMessageRealtime(
+      id: id,
+      userId: userId,
+      message: '이 메시지는 부적절한 내용으로 인해 숨겨졌습니다.',
+      timestamp: timestamp,
+      userName: userName,
+      type: MessageType.text,
+      isBlocked: true,
+      originalMessage: originalMessage,
     );
   }
 

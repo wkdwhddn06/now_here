@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../data/chat_message_realtime.dart';
+import 'ai_event_service.dart';
 
 class ChatServiceRealtime {
   static final ChatServiceRealtime _instance = ChatServiceRealtime._internal();
@@ -12,6 +13,8 @@ class ChatServiceRealtime {
     app: Firebase.app(),
     databaseURL: 'https://nowhere-8985a-default-rtdb.asia-southeast1.firebasedatabase.app/',
   );
+  
+  final AiEventService _aiService = AiEventService();
 
   // 채팅룸 메시지 스트림 구독
   Stream<List<ChatMessageRealtime>> getMessagesStream(String chatRoomId) {
@@ -55,13 +58,31 @@ class ChatServiceRealtime {
           .ref('chatRooms/$chatRoomId/messages')
           .push();
 
-      final chatMessage = ChatMessageRealtime(
-        id: messageRef.key!,
-        userId: userId,
-        userName: userName,
-        message: message,
-        timestamp: DateTime.now().millisecondsSinceEpoch,
-      );
+      // AI 비속어 감지
+      final hasProfanity = await _aiService.checkForProfanity(message);
+      
+      final ChatMessageRealtime chatMessage;
+      
+      if (hasProfanity) {
+        // 비속어가 감지된 경우 블라인드 처리된 메시지 생성
+        chatMessage = ChatMessageRealtime.blocked(
+          id: messageRef.key!,
+          userId: userId,
+          userName: userName,
+          originalMessage: message,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+        print('비속어 감지로 메시지 블라인드 처리: $userName');
+      } else {
+        // 정상 메시지 생성
+        chatMessage = ChatMessageRealtime(
+          id: messageRef.key!,
+          userId: userId,
+          userName: userName,
+          message: message,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+      }
 
       await messageRef.set(chatMessage.toMap());
       

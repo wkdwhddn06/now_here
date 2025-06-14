@@ -201,6 +201,11 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _buildMessageBubble() {
+    // 블라인드 처리된 메시지인 경우 특별한 디자인 적용
+    if (widget.message.isBlocked) {
+      return _buildBlockedMessageBubble();
+    }
+    
     return Container(
       constraints: const BoxConstraints(maxWidth: 250),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -214,6 +219,142 @@ class _MessageBubbleState extends State<MessageBubble> {
           color: Colors.white,
           fontSize: 14,
         ),
+      ),
+    );
+  }
+
+  // 블라인드 처리된 메시지 버블
+  Widget _buildBlockedMessageBubble() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[800]?.withOpacity(0.6),
+        borderRadius: _getBubbleRadius(),
+        border: Border.all(
+          color: Colors.orange.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.visibility_off,
+                color: Colors.orange[300],
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  widget.message.message,
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _showOriginalMessage(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.orange[300],
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '원본 보기',
+                  style: TextStyle(
+                    color: Colors.orange[300],
+                    fontSize: 11,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 원본 메시지 보기 다이얼로그
+  void _showOriginalMessage() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2d2d2d),
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange[300],
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              '원본 메시지',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '이 메시지는 부적절한 내용으로 인해 자동으로 숨겨졌습니다.',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[800]?.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.red.withOpacity(0.3),
+                ),
+              ),
+              child: Text(
+                widget.message.originalMessage ?? '원본 메시지를 찾을 수 없습니다.',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              '닫기',
+              style: TextStyle(
+                color: Colors.orange[300],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

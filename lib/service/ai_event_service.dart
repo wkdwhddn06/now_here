@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/location_event.dart';
@@ -19,7 +19,7 @@ class AiEventService {
   
   void initialize() {
     try {
-      _model = FirebaseVertexAI.instance.generativeModel(model: 'gemini-1.5-flash');
+      _model = FirebaseAI.vertexAI().generativeModel(model: 'gemini-2.0-flash');
       print('AI 이벤트 서비스 초기화 완료');
     } catch (e) {
       print('AI 이벤트 서비스 초기화 실패: $e');
@@ -199,5 +199,58 @@ JSON만 출력하세요.
       print('기본 LocationEvent 생성 실패: $e');
       return null;
     }
+  }
+
+  // 비속어 감지 기능
+  Future<bool> checkForProfanity(String message) async {
+    try {
+      final prompt = '''
+다음 메시지에 비속어, 욕설, 혐오 표현, 성적인 내용, 폭력적인 내용이 포함되어 있는지 분석해 주세요.
+
+메시지: "$message"
+
+분석 기준:
+1. 한국어 비속어 및 욕설
+2. 영어 비속어 및 욕설
+3. 성적인 내용
+4. 혐오 표현 (인종, 성별, 종교 등)
+5. 폭력적인 내용
+6. 괴롭힘이나 따돌림 관련 내용
+
+반드시 아래 JSON 형식만으로 응답해 주세요:
+{
+  "hasProfanity": true/false,
+  "reason": "감지된 이유 (한국어)"
+}
+
+예시:
+- 일반적인 인사나 대화: {"hasProfanity": false, "reason": "적절한 내용"}
+- 비속어 포함: {"hasProfanity": true, "reason": "비속어 감지"}
+- 혐오 표현: {"hasProfanity": true, "reason": "혐오 표현 감지"}
+
+JSON만 출력하세요.
+      ''';
+
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      
+      if (response.text != null && response.text!.isNotEmpty) {
+        final jsonText = _extractJsonFromResponse(response.text!);
+        final Map<String, dynamic> data = json.decode(jsonText);
+        
+        final hasProfanity = data['hasProfanity'] ?? false;
+        if (hasProfanity) {
+          print('비속어 감지됨: ${data['reason']}');
+        }
+        
+        return hasProfanity;
+      }
+    } catch (e) {
+      print('비속어 감지 실패: $e');
+      // AI 검사 실패시 안전하게 통과시킴
+      return false;
+    }
+    
+    return false;
   }
 } 
