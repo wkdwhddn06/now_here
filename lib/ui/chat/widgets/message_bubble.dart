@@ -76,25 +76,61 @@ class _MessageBubbleState extends State<MessageBubble> {
       }
     }
 
-    // 일반 텍스트 메시지
-    return _buildTextMessage();
+    // 일반 텍스트 메시지 - 이전 디자인 사용
+    return Padding(
+      padding: EdgeInsets.only(
+        top: widget.isFirstInGroup ? 8 : 2,
+        bottom: widget.isLastInGroup ? 8 : 2,
+      ),
+      child: Row(
+        mainAxisAlignment:
+            widget.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!widget.isMe) ...[
+            // 첫 번째 메시지에만 아바타 표시, 나머지는 빈 공간
+            SizedBox(
+              width: 32,
+              child: widget.isFirstInGroup ? _buildAvatar() : null,
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                // 첫 번째 메시지에만 사용자명 표시
+                if (!widget.isMe && widget.isFirstInGroup) _buildUserName(),
+                _buildMessageBubble(),
+                // 마지막 메시지에만 시간 표시
+                if (widget.showTimestamp && widget.isLastInGroup) _buildTimestamp(),
+              ],
+            ),
+          ),
+          if (widget.isMe) ...[
+            const SizedBox(width: 8),
+            // 첫 번째 메시지에만 아바타 표시, 나머지는 빈 공간
+            SizedBox(
+              width: 32,
+              child: widget.isFirstInGroup ? _buildAvatar() : null,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildLoadingEventBubble() {
-    return Container(
-      margin: EdgeInsets.only(
-        left: widget.isMe ? 64 : 16,
-        right: widget.isMe ? 16 : 64,
-        top: 4,
-        bottom: 4,
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Align(
         alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: widget.isMe ? Colors.blue[600] : Colors.grey[800],
-            borderRadius: BorderRadius.circular(16),
+            color: widget.isMe ? Colors.deepPurple : const Color(0xFF3d3d3d),
+            borderRadius: BorderRadius.circular(18),
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
@@ -102,7 +138,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               ),
               SizedBox(width: 8),
               Text(
@@ -117,20 +153,15 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _buildErrorEventBubble() {
-    return Container(
-      margin: EdgeInsets.only(
-        left: widget.isMe ? 64 : 16,
-        right: widget.isMe ? 16 : 64,
-        top: 4,
-        bottom: 4,
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Align(
         alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.red.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.red.withOpacity(0.5)),
           ),
           child: const Row(
@@ -149,65 +180,96 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildTextMessage() {
-    return Container(
-      margin: EdgeInsets.only(
-        left: widget.isMe ? 64 : 16,
-        right: widget.isMe ? 16 : 64,
-        top: widget.isFirstInGroup ? 8 : 2,
-        bottom: widget.isLastInGroup ? 8 : 2,
+  Widget _buildAvatar() {
+    return AnonymousUserAvatar(
+      userId: widget.message.userId,
+      size: 32,
+    );
+  }
+
+  Widget _buildUserName() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 4),
+      child: AnonymousUserName(
+        userId: widget.message.userId,
+        userName: widget.message.userName,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        showGradient: false,
       ),
-      child: Column(
-        crossAxisAlignment: widget.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          // 사용자 이름 (첫 번째 메시지이고 내가 보낸 메시지가 아닐 때만)
-          if (widget.isFirstInGroup && !widget.isMe)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, bottom: 4),
-              child: AnonymousUserName(
-                userId: widget.message.userId,
-                userName: widget.message.userName,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                showGradient: false,
-              ),
-            ),
-          
-          // 메시지 버블
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: widget.isMe ? Colors.blue[600] : Colors.grey[800],
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(widget.isMe || !widget.isFirstInGroup ? 16 : 4),
-                topRight: Radius.circular(!widget.isMe || !widget.isFirstInGroup ? 16 : 4),
-                bottomLeft: Radius.circular(widget.isMe || !widget.isLastInGroup ? 16 : 4),
-                bottomRight: Radius.circular(!widget.isMe || !widget.isLastInGroup ? 16 : 4),
-              ),
-            ),
-            child: Text(
-              widget.message.message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.3,
-              ),
-            ),
-          ),
-          
-          // 시간 표시 (마지막 메시지일 때만)
-          if (widget.showTimestamp)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                _formatTime(widget.message.dateTime),
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 11,
-                ),
-              ),
-            ),
-        ],
+    );
+  }
+
+  Widget _buildMessageBubble() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 250),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: widget.isMe ? Colors.deepPurple : const Color(0xFF3d3d3d),
+        borderRadius: _getBubbleRadius(),
+      ),
+      child: Text(
+        widget.message.message,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  BorderRadius _getBubbleRadius() {
+    const radius = Radius.circular(18);
+    const smallRadius = Radius.circular(6);
+    
+    if (widget.isFirstInGroup && widget.isLastInGroup) {
+      // 단독 메시지 - 모든 모서리 둥글게
+      return BorderRadius.only(
+        topLeft: radius,
+        topRight: radius,
+        bottomLeft: widget.isMe ? radius : smallRadius,
+        bottomRight: widget.isMe ? smallRadius : radius,
+      );
+    } else if (widget.isFirstInGroup) {
+      // 그룹 첫 메시지 - 상단만 둥글게
+      return BorderRadius.only(
+        topLeft: radius,
+        topRight: radius,
+        bottomLeft: widget.isMe ? radius : smallRadius,
+        bottomRight: widget.isMe ? smallRadius : radius,
+      );
+    } else if (widget.isLastInGroup) {
+      // 그룹 마지막 메시지 - 하단만 둥글게
+      return BorderRadius.only(
+        topLeft: widget.isMe ? radius : smallRadius,
+        topRight: widget.isMe ? smallRadius : radius,
+        bottomLeft: widget.isMe ? radius : smallRadius,
+        bottomRight: widget.isMe ? smallRadius : radius,
+      );
+    } else {
+      // 그룹 중간 메시지 - 양쪽만 둥글게
+      return BorderRadius.only(
+        topLeft: widget.isMe ? radius : smallRadius,
+        topRight: widget.isMe ? smallRadius : radius,
+        bottomLeft: widget.isMe ? radius : smallRadius,
+        bottomRight: widget.isMe ? smallRadius : radius,
+      );
+    }
+  }
+
+  Widget _buildTimestamp() {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 4,
+        left: widget.isMe ? 0 : 8,
+        right: widget.isMe ? 8 : 0,
+      ),
+      child: Text(
+        _formatTime(widget.message.dateTime),
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.white54,
+        ),
       ),
     );
   }

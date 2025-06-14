@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final nearestRooms = await _chatRoomService.getNearestChatRoomsWithPosition(
         position: _currentPosition!,
-        limit: 10, // 이벤트 채팅방 필터링을 고려해 더 많이 가져옴
+        limit: 50, // 이벤트 채팅방 필터링을 고려해 더 많이 가져옴
       );
       
       // 이벤트 채팅방 필터링 (isEventRoom이 false인 것만)

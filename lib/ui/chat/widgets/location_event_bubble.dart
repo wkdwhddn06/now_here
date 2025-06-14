@@ -32,54 +32,82 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
     final isParticipant = widget.event.participantIds.contains(currentUserId);
     final isCreator = widget.event.creatorId == currentUserId;
 
-    return Container(
-      margin: EdgeInsets.only(
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 8,
+        bottom: 8,
         left: widget.isMe ? 64 : 16,
         right: widget.isMe ? 16 : 64,
-        top: 4,
-        bottom: 4,
       ),
       child: Align(
         alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75,
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
           ),
           decoration: BoxDecoration(
-            color: widget.isMe ? Colors.blue[600] : Colors.grey[800],
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _getEventColor(widget.event.type).withOpacity(0.5),
-              width: 2,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _getEventColor(widget.event.type).withOpacity(0.1),
+                _getEventColor(widget.event.type).withOpacity(0.05),
+              ],
             ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _getEventColor(widget.event.type).withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _getEventColor(widget.event.type).withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 헤더
+              // 헤더 - 더 컴팩트하고 모던한 디자인
               Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _getEventColor(widget.event.type).withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(14),
-                    topRight: Radius.circular(14),
-                  ),
-                ),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
+                    // 이벤트 타입 아이콘
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: _getEventColor(widget.event.type),
-                        borderRadius: BorderRadius.circular(6),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            _getEventColor(widget.event.type),
+                            _getEventColor(widget.event.type).withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getEventColor(widget.event.type).withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        widget.event.type.icon,
-                        style: const TextStyle(fontSize: 16),
+                      child: Center(
+                        child: Icon(
+                          _getEventIcon(widget.event.type),
+                          size: 24,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
+                    
+                    // 제목과 위치
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,21 +115,36 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
                           Text(
                             widget.event.title,
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              height: 1.2,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
-                            widget.event.locationName,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withOpacity(0.7),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  widget.event.locationName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.7),
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -110,61 +153,68 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
                 ),
               ),
               
+              // 구분선
+              Container(
+                height: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      _getEventColor(widget.event.type).withOpacity(0.2),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+              
               // 내용
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 설명
                     Text(
                       widget.event.description,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: Colors.white,
-                        height: 1.3,
+                        height: 1.4,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     
-                    // 정보 칩들
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
+                    // 정보 칩들 - 더 모던한 디자인
+                    Row(
                       children: [
-                        _buildInfoChip(
-                          icon: Icons.people,
+                        _buildModernInfoChip(
+                          icon: Icons.people_outline,
                           text: '${widget.event.participantIds.length}/${widget.event.maxParticipants}',
                           color: Colors.blue,
                         ),
-                        _buildInfoChip(
-                          icon: Icons.access_time,
+                        const SizedBox(width: 8),
+                        _buildModernInfoChip(
+                          icon: Icons.schedule,
                           text: widget.event.timeLeftString,
                           color: Colors.orange,
                         ),
-                        if (widget.event.isExpired)
-                          _buildInfoChip(
-                            icon: Icons.block,
-                            text: '마감됨',
-                            color: Colors.red,
-                          )
-                        else if (widget.event.isFull)
-                          _buildInfoChip(
-                            icon: Icons.group,
-                            text: '인원마감',
-                            color: Colors.amber,
-                          ),
+                        if (widget.event.isExpired || widget.event.isFull) ...[
+                          const SizedBox(width: 8),
+                          _buildStatusChip(),
+                        ],
                       ],
                     ),
                     
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     
-                    // 액션 버튼
+                    // 액션 버튼 - 더 모던한 디자인
                     if (!widget.event.isExpired) ...[
                       SizedBox(
                         width: double.infinity,
-                        child: _buildActionButton(
+                        child: _buildModernActionButton(
                           isParticipant, 
                           isCreator,
                         ),
@@ -180,16 +230,16 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
     );
   }
 
-  Widget _buildInfoChip({
+  Widget _buildModernInfoChip({
     required IconData icon,
     required String text,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: color.withOpacity(0.3),
           width: 1,
@@ -200,15 +250,15 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
         children: [
           Icon(
             icon,
-            size: 10,
+            size: 14,
             color: color,
           ),
-          const SizedBox(width: 3),
+          const SizedBox(width: 4),
           Text(
             text,
             style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
@@ -217,21 +267,92 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
     );
   }
 
-  Widget _buildActionButton(bool isParticipant, bool isCreator) {
+  Widget _buildStatusChip() {
     if (widget.event.isExpired) {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.red.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.red.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.block,
+              size: 14,
+              color: Colors.red,
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              '마감됨',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (widget.event.isFull) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.amber.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.amber.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.group,
+              size: 14,
+              color: Colors.amber,
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              '인원마감',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.amber,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildModernActionButton(bool isParticipant, bool isCreator) {
+    if (widget.event.isExpired) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: const Center(
           child: Text(
             '마감된 이벤트',
             style: TextStyle(
               color: Colors.grey,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -239,68 +360,144 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
     }
 
     if (isParticipant) {
-      return ElevatedButton.icon(
-        onPressed: _isLoading ? null : () => _joinEventAndNavigate(),
-        icon: _isLoading 
-            ? const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.chat, size: 14),
-        label: Text(
-          isCreator ? '내 이벤트 채팅방' : '이벤트 채팅방 입장',
-          style: const TextStyle(fontSize: 11),
+      return Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green,
+              Color(0xFF4CAF50),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          minimumSize: const Size(0, 32),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _isLoading ? null : () => _joinEventAndNavigate(),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isLoading)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isCreator ? '내 이벤트 채팅방' : '이벤트 채팅방 입장',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
     } else if (widget.event.isFull) {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.amber.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.amber.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.amber.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: const Center(
           child: Text(
             '인원이 가득참',
             style: TextStyle(
               color: Colors.amber,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
       );
     } else {
-      return ElevatedButton.icon(
-        onPressed: _isLoading ? null : () => _joinEventAndNavigate(),
-        icon: _isLoading 
-            ? const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.add, size: 14),
-        label: const Text(
-          '참여하기',
-          style: TextStyle(fontSize: 11),
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _getEventColor(widget.event.type),
+              _getEventColor(widget.event.type).withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: _getEventColor(widget.event.type).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _getEventColor(widget.event.type),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          minimumSize: const Size(0, 32),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _isLoading ? null : () => _joinEventAndNavigate(),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isLoading)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.add_circle_outline,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '참여하기',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -403,6 +600,27 @@ class _LocationEventBubbleState extends State<LocationEventBubble> {
         ),
       ),
     );
+  }
+
+  IconData _getEventIcon(EventType eventType) {
+    switch (eventType) {
+      case EventType.study:
+        return Icons.school;
+      case EventType.food:
+        return Icons.restaurant;
+      case EventType.help:
+        return Icons.help;
+      case EventType.chat:
+        return Icons.chat;
+      case EventType.coffee:
+        return Icons.local_cafe;
+      case EventType.walk:
+        return Icons.directions_walk;
+      case EventType.shopping:
+        return Icons.shopping_bag;
+      case EventType.emergency:
+        return Icons.emergency;
+    }
   }
 
   Color _getEventColor(EventType eventType) {
