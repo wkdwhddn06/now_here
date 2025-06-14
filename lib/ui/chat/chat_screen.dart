@@ -7,6 +7,7 @@ import '../../service/user_service.dart';
 import '../widgets/state_widgets.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/chat_input.dart';
+import 'widgets/ai_banner_widget.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatRoom chatRoom;
@@ -369,6 +370,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // AI 배너 광고 추가
+          AiBannerWidget(
+            locationName: widget.chatRoom.locationName,
+          ),
           Expanded(
             child: _buildMessageList(),
           ),

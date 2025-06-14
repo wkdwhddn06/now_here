@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'service/user_service.dart';
+import 'service/ai_banner_service.dart';
 import 'ui/main_screen.dart';
 
 void main() async {
@@ -11,6 +12,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // AI 배너 서비스 초기화
+  AiBannerService().initialize();
   
   // 사용자 초기화
   await UserService().initializeUser();
@@ -25,6 +29,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '지금, 여기',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         primaryColor: Colors.deepPurple,
         scaffoldBackgroundColor: const Color(0xFF1a1a1a),
