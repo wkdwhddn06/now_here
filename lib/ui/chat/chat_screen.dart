@@ -8,6 +8,9 @@ import '../widgets/state_widgets.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/chat_input.dart';
 import 'widgets/ai_banner_widget.dart';
+import 'widgets/event_bubble.dart';
+import '../../service/event_service.dart';
+import '../../data/chat_event.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatRoom chatRoom;
@@ -28,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final UserService _userService = UserService();
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
+  final EventService _eventService = EventService();
   
   late AnonymousUser _currentUser;
   List<ChatMessageRealtime> _messages = [];
@@ -41,6 +45,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _initializeChat();
+    // 만료된 이벤트 정리
+    _eventService.cleanupExpiredEvents(widget.chatRoom.id!);
   }
 
   @override
@@ -373,6 +379,7 @@ class _ChatScreenState extends State<ChatScreen> {
           // AI 배너 광고 추가
           AiBannerWidget(
             locationName: widget.chatRoom.locationName,
+            chatRoomId: widget.chatRoom.id!,
           ),
           Expanded(
             child: _buildMessageList(),
@@ -400,26 +407,58 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final message = _messages[index];
-        final isMe = message.userId == _currentUser.id;
+    return StreamBuilder<List<ChatEvent>>(
+      stream: _eventService.getActiveEventsStream(widget.chatRoom.id!),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          print('이벤트 스트림 오류: ${snapshot.error}');
+        }
+
+        final events = snapshot.data ?? [];
         
-        // 메시지 그룹핑 로직
-        final groupInfo = _getMessageGroupInfo(index);
-        
-        return MessageBubble(
-          message: message,
-          isMe: isMe,
-          isFirstInGroup: groupInfo.isFirst,
-          isLastInGroup: groupInfo.isLast,
-          showTimestamp: groupInfo.showTimestamp,
+        return ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _getItemCount(events),
+          itemBuilder: (context, index) => _buildChatItem(context, index, events),
         );
       },
     );
+  }
+
+  int _getItemCount(List<ChatEvent> events) {
+    // 기본 메시지들 + 이벤트들
+    return _messages.length + events.length;
+  }
+
+  Widget _buildChatItem(BuildContext context, int index, List<ChatEvent> events) {
+    // 이벤트가 먼저 표시되도록
+    if (index < events.length) {
+      return EventBubble(
+        event: events[index],
+        chatRoomId: widget.chatRoom.id!,
+      );
+    }
+    
+    // 기본 채팅 메시지
+    final messageIndex = index - events.length;
+    if (messageIndex < _messages.length) {
+      final message = _messages[messageIndex];
+      final isMe = message.userId == _currentUser.id;
+      
+      // 메시지 그룹핑 로직
+      final groupInfo = _getMessageGroupInfo(messageIndex);
+      
+      return MessageBubble(
+        message: message,
+        isMe: isMe,
+        isFirstInGroup: groupInfo.isFirst,
+        isLastInGroup: groupInfo.isLast,
+        showTimestamp: groupInfo.showTimestamp,
+      );
+    }
+    
+    return const SizedBox.shrink();
   }
 
   MessageGroupInfo _getMessageGroupInfo(int index) {

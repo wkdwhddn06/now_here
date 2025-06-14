@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../service/ai_banner_service.dart';
+import '../../../service/ai_event_service.dart';
+import '../../../service/event_service.dart';
+import '../../../service/user_service.dart';
 
 class AiBannerWidget extends StatefulWidget {
   final String locationName;
+  final String chatRoomId;
   final VoidCallback? onTap;
 
   const AiBannerWidget({
     super.key,
     required this.locationName,
+    required this.chatRoomId,
     this.onTap,
   });
 
@@ -406,28 +411,159 @@ class _AiBannerWidgetState extends State<AiBannerWidget> {
               ],
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: banner.backgroundColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                // 같이 하기 버튼
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _createEventFromBanner(banner),
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('같이 하기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
-                child: Text(
-                  banner.callToAction,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 12),
+                // 기존 액션 버튼
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: banner.backgroundColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      banner.callToAction,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _createEventFromBanner(BannerAd banner) async {
+    try {
+      // 로딩 다이얼로그 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Dialog(
+          backgroundColor: Colors.transparent,
+          child: Center(
+            child: Card(
+              color: Colors.black87,
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.orange),
+                    SizedBox(height: 16),
+                    Text(
+                      'AI로 이벤트를 생성하는 중...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
+        ),
+      );
+
+      final aiEventService = AiEventService();
+      final eventService = EventService();
+      final userService = UserService();
+
+      // AI를 통해 이벤트 생성
+      final event = await aiEventService.generateEventFromBanner(
+        banner,
+        userService.currentUser.id,
+        userService.currentUser.name,
+        widget.chatRoomId,
+      );
+
+      // 로딩 다이얼로그 닫기
+      Navigator.pop(context);
+
+      if (event != null) {
+        // Firebase에 이벤트 저장
+        final success = await eventService.createEvent(event, widget.chatRoomId);
+        
+        if (success) {
+          // 성공 메시지와 함께 모달 닫기
+          Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.celebration, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${event.title} 이벤트가 생성되었습니다!',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          _showErrorMessage('이벤트 저장에 실패했습니다.');
+        }
+      } else {
+        _showErrorMessage('이벤트 생성에 실패했습니다.');
+      }
+    } catch (e) {
+      // 로딩 다이얼로그가 열려있으면 닫기
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      _showErrorMessage('이벤트 생성 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
           ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );

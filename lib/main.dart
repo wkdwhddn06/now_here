@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'service/user_service.dart';
 import 'service/ai_banner_service.dart';
+import 'service/ai_event_service.dart';
 import 'ui/main_screen.dart';
 
 void main() async {
@@ -15,6 +16,9 @@ void main() async {
   
   // AI 배너 서비스 초기화
   AiBannerService().initialize();
+  
+  // AI 이벤트 서비스 초기화
+  AiEventService().initialize();
   
   // 사용자 초기화
   await UserService().initializeUser();
